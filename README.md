@@ -37,6 +37,12 @@ Project to understand multimodal AI and build an experimentation "laboratory" ar
 - `scripts/sample_gallery.py` surfaces NLVR2 examples (by UID or random draw) and can save paired images under `/content/drive/MyDrive/VLM_Studies_Files/analysis/...`.
 - `scripts/model_playground.py` runs free-form prompts through Qwen2-VL with adjustable decoding knobs; append responses to JSONL logs for later study.
 - `scripts/inspect_sample.py` reveals metadata for a specific UID and optionally exports the raw images.
+- Notebook helpers expose a persistent UID cache (`utils/uid_cache.py`) so you can bookmark interesting examples and cycle through them during interactive exploration.
+- `colab/Playground.ipynb` wires the pieces together for Drive-mounted experimentation in Colab.
+
+- `scripts/sample_gallery.py` surfaces NLVR2 examples (by UID or random draw) and can save paired images under `/content/drive/MyDrive/VLM_Studies_Files/analysis/...`.
+- `scripts/model_playground.py` runs free-form prompts through Qwen2-VL with adjustable decoding knobs; append responses to JSONL logs for later study.
+- `scripts/inspect_sample.py` reveals metadata for a specific UID and optionally exports the raw images.
 - `colab/Playground.ipynb` wires the pieces together for Drive-mounted experimentation in Colab.
 
 ## Repository Layout (work in progress)
