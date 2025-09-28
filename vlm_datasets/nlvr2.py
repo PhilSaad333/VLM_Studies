@@ -83,6 +83,7 @@ def load_nlvr2(config: NLVR2DataConfig) -> Dataset | IterableDataset:
 
     ds = load_dataset(
         "nlvr",
+        "nlvr2",
         split=config.split,
         streaming=config.streaming,
         data_dir=config.data_dir,
