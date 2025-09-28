@@ -234,3 +234,9 @@ def save_sample_images(example: Dict[str, Any], output_dir: Path) -> List[Path]:
         slot = metadata_images[idx].get("slot") if idx < len(metadata_images) else f"image_{idx}"
         filename = metadata_images[idx].get("filename") if idx < len(metadata_images) else None
         if not filename:
+            filename = f"{example.get('uid', 'sample')}_{slot}.png"
+        path = output_dir / filename
+        image.save(path)
+        saved_paths.append(path)
+
+    return saved_paths
