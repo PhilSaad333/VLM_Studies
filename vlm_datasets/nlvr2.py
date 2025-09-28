@@ -11,41 +11,9 @@ from dataclasses import dataclass
 from itertools import islice
 from typing import Any, Dict, List, Optional
 
-import importlib.machinery
-import importlib.util
-import sys
-from pathlib import Path
+from datasets import Dataset, DatasetDict, IterableDataset, load_dataset
 
-from utils.prompts import attach_assistant_response, build_conversation, format_nlvr2_prompt
-
-
-def _load_external_datasets_module():
-    repo_root = Path(__file__).resolve().parents[1]
-    for entry in sys.path:
-        if not entry:
-            continue
-        entry_path = Path(entry).resolve()
-        # Skip the current repository so we do not import our own package.
-        if repo_root in entry_path.parents or entry_path == repo_root:
-            continue
-        spec = importlib.machinery.PathFinder.find_spec("datasets", [str(entry_path)])
-        if spec is None:
-            continue
-        module = importlib.util.module_from_spec(spec)
-        assert spec.loader is not None
-        spec.loader.exec_module(module)
-        sys.modules.setdefault("hf_datasets", module)
-        return module
-    raise ImportError(
-        "Unable to locate the external `datasets` package. Install it via `pip install datasets`."
-    )
-
-
-hf_datasets = _load_external_datasets_module()
-Dataset = hf_datasets.Dataset
-DatasetDict = hf_datasets.DatasetDict
-IterableDataset = hf_datasets.IterableDataset
-load_dataset = hf_datasets.load_dataset
+from utils.prompts import build_conversation, format_nlvr2_prompt
 
 
 @dataclass

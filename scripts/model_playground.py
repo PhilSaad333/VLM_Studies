@@ -15,7 +15,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from datasets.nlvr2 import (
+from vlm_datasets.nlvr2 import (
     NLVR2DataConfig,
     find_sample_by_uid,
     load_nlvr2,

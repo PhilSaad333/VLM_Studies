@@ -15,7 +15,7 @@ from transformers import (
 )
 from trl import SFTTrainer
 
-from datasets.nlvr2 import NLVR2DataConfig, load_nlvr2, materialize_dataset
+from vlm_datasets.nlvr2 import NLVR2DataConfig, load_nlvr2, materialize_dataset
 from training.config import LoRATrainingConfig
 from training.data_collator import Qwen2VLClassificationCollator
 

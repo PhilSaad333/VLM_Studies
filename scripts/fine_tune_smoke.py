@@ -10,7 +10,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from datasets.nlvr2 import NLVR2DataConfig
+from vlm_datasets.nlvr2 import NLVR2DataConfig
 from training.config import LoRATrainingConfig
 from training.sft import run_lora_training
 

@@ -6,7 +6,7 @@ from typing import Any, Dict, List
 import torch
 from transformers import AutoProcessor
 
-from datasets.nlvr2 import build_chat_messages
+from vlm_datasets.nlvr2 import build_chat_messages
 from utils.prompts import attach_assistant_response
 
 

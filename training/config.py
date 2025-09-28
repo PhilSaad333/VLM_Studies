@@ -6,7 +6,7 @@ from typing import List, Optional
 
 from datasets import Dataset, IterableDataset
 
-from datasets.nlvr2 import NLVR2DataConfig
+from vlm_datasets.nlvr2 import NLVR2DataConfig
 
 
 @dataclass
