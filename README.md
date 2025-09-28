@@ -1,64 +1,18 @@
 # VLM Studies
 
-Project to understand multimodal AI and build an experimentation "laboratory" around visual-language models.
+Project to understand multimodal AI and build an experimentation "laboratory" around visual-language models. My main goal is to get some familiarity with multimodal AI. For now, I'm just sticking with models that can take images as input, postponing anything about audio and video, as well as generating audio/images/video to later.
 
-## Goals
-- Build intuition for multimodal model internals and training dynamics.
-- Fine-tune Qwen2-VL-2B on NLVR2 using parameter-efficient methods (LoRA / Q-LoRA).
-- Create reproducible pipelines for evaluation, analysis, and ablations across visual reasoning tasks.
+In order to do this I'm focusing on:
 
-## Environment Setup
-### Local (Windows + VS Code)
-1. Install Python 3.10 or 3.11.
-2. Create a virtual environment: `python -m venv .venv`.
-3. Select `.venv` inside VS Code (`Python: Select Interpreter`) or activate manually with `\.venv\Scripts\activate` in PowerShell.
-4. Install dependencies: `pip install -r requirements.txt`.
-5. Run `accelerate config` when you first invoke training/eval scripts locally (CPU/lightweight runs only).
+- Doing lots of eval on multimodal AI models (just Qwen2-VL for now) to get a sense of their strengths and weaknesses
+- Coming up with some "things to do" with a multimodal model that might be interesting, probably motivated by trying to see how to address a weakness of the model
+- Finding questions to study in a scientific way that will help me understand why the model is behaving in a certain way and how to change that. 
 
-### Remote GPU (Colab or Lambda Cloud)
-1. Clone this repository after mounting the appropriate storage (e.g., Google Drive at `/content/drive/MyDrive/`).
-2. `pip install -r requirements.txt` (skip `torch` if a GPU build is already present).
-3. Configure `accelerate` for a single GPU with bf16 mixed precision.
-4. Persist artifacts under `/content/drive/MyDrive/VLM_Studies_Files/` using subdirectories such as `checkpoints/`, `logs/`, and `datasets/`.
+My first 'mini-project' after spending a little bit of time testing out Qwen2-VL revolves around the model's ability to precisely keep track of multiple objects in an image. For example, one task it failed badly at involved an image with several multiple TV screens. It failed to count the screens, and failed even more badly at listing what was on the screens.
 
-## Data Strategy
-- Primary dataset: NLVR2 (≈107k examples, ~6–7 GB of images).
-- Start with Hugging Face streaming (`datasets.load_dataset("pingzhili/nlvr2", streaming=True)`) for iteration speed.
-- Cache full copies to Drive/Lambda storage only when stable throughput is required; keep a manifest documenting version, split sizes, and SHA checks.
-- Dataset preprocessing utilities live in `vlm_datasets/` and expose a toggle between streaming and cached modes.
-- Each example retains its NLVR2 `uid` plus metadata (image dimensions, URLs when available). Use `scripts/inspect_sample.py` to surface details and optionally export the paired images for manual review.
+This failure motivated the following "things to do" and "questions to study":
 
-## Training & Logging
-- Training scripts use TRL + PEFT for LoRA adapters, saving adapter weights and optimizer state only.
-- TensorBoard is the default experiment logger; run `%tensorboard --logdir logs/tb` in Colab or `tensorboard --logdir logs/tb` locally.
-- Store configs under `training/configs/` and `eval/configs/` to reproduce runs; record seeds, prompt templates, and dataset variants.
+For a "thing to do" - What sort of things could we do to improve the model's capability for these kinds of tasks? I thought it might be interesting to try out teaching the model to use a bounding box tool to create boxes on the image with accompanying labels. The model could further be trained to use this tool while reasoning about questions like this (e.g. it could go through each object in order and box+label them, then at the end it has a clear list).
 
-## Manual Exploration
-- `scripts/sample_gallery.py` surfaces NLVR2 examples (by UID or random draw) and can save paired images under `/content/drive/MyDrive/VLM_Studies_Files/analysis/...`.
-- `scripts/model_playground.py` runs free-form prompts through Qwen2-VL with adjustable decoding knobs; append responses to JSONL logs for later study.
-- `scripts/inspect_sample.py` reveals metadata for a specific UID and optionally exports the raw images.
-- Notebook helpers expose a persistent UID cache (`utils/uid_cache.py`) so you can bookmark interesting examples and cycle through them during interactive exploration.
-- `colab/Playground.ipynb` wires the pieces together for Drive-mounted experimentation in Colab.
+Of course there are a lot of questions that this brings up. Some that stood out to me more are along the lines of "Do different ways of presenting the visual information have an effect on the model's ability to understand the image in a fine-grained way (e.g. to be able to correctly count and describe several similar objects)? How does the way the model pre-processes images (for Qwen2-VL, the ViT does patching and then we do resampling) affect its performance in these sorts of tasks? As a basic question that I'm sure has been studied to death already, is performance on tasks like this sensitive to the details of the patching and re-sampling? Does reorienting the image make a difference (perhaps how many patches an object is in initially makes a difference?)? Does this motivate changes to my bounding box tool approach (Should the bounding box tool create a cropped version of the image in addition to one marked up with a bounding box?) 
 
-- `scripts/sample_gallery.py` surfaces NLVR2 examples (by UID or random draw) and can save paired images under `/content/drive/MyDrive/VLM_Studies_Files/analysis/...`.
-- `scripts/model_playground.py` runs free-form prompts through Qwen2-VL with adjustable decoding knobs; append responses to JSONL logs for later study.
-- `scripts/inspect_sample.py` reveals metadata for a specific UID and optionally exports the raw images.
-- `colab/Playground.ipynb` wires the pieces together for Drive-mounted experimentation in Colab.
-
-## Repository Layout (work in progress)
-```
-vlm_datasets/ # Dataset preparation and prompt templating
-training/    # Fine-tuning loops, configs, and utilities
-evals/       # Evaluation scripts and analysis notebooks
-scripts/     # Entry-point scripts for Colab/Lambda runs
-utils/       # Shared helpers (prompt builders, etc.)
-colab/       # Colab notebooks for setup and exploration
-Setup/       # Planning notes and references
-```
-
-## Next Milestones
-- Implement NLVR2 preprocessing pipeline (streaming + cached paths).
-- Add zero-shot evaluation script for Qwen2-VL-2B on NLVR2 dev.
-- Deliver fine-tuning smoke test script runnable on a single GPU.
-- Automate TensorBoard logging and Drive checkpoint management.
-- Build sample-inspection workflows that map evaluation outcomes back to raw NLVR2 images for error analysis.
