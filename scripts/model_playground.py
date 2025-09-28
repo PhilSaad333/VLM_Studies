@@ -55,12 +55,14 @@ def load_images_from_paths(paths: List[str]) -> List[Image.Image]:
 def resolve_dataset_sample(cfg: NLVR2DataConfig, uid: str | None, index: int | None):
     dataset = load_nlvr2(cfg)
     if uid:
-        return find_sample_by_uid(dataset, uid, limit=cfg.streaming_take)
+        limit = cfg.streaming_take if cfg.streaming else None
+        return find_sample_by_uid(dataset, uid, limit=limit)
 
     if index is None:
         raise ValueError("Provide either --uid or --index when using dataset samples")
 
-    materialized = materialize_dataset(dataset, cfg.streaming_take)
+    limit = cfg.streaming_take if cfg.streaming else None
+    materialized = materialize_dataset(dataset, limit)
     if index < 0 or index >= len(materialized):
         raise IndexError(f"Index {index} out of range (len={len(materialized)})")
     return materialized[index]
