@@ -8,6 +8,7 @@ peft>=0.12.0
 
 # Data loading & preprocessing
 datasets>=2.20.0
+pyarrow>=12.0.0
 evaluate>=0.4.2
 numpy>=1.24
 pillow>=10.3.0

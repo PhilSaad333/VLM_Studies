@@ -12,6 +12,8 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+import logging
+
 from vlm_datasets.nlvr2 import (
     NLVR2DataConfig,
     find_sample_by_uid,
@@ -52,6 +54,7 @@ def select_samples(dataset, uids: Sequence[str] | None, num_samples: int, seed: 
 
 
 def main() -> None:
+    logging.basicConfig(level=logging.INFO)
     args = parse_args()
     cfg = NLVR2DataConfig(
         split=args.split,

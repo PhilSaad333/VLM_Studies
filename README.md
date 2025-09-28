@@ -23,7 +23,7 @@ Project to understand multimodal AI and build an experimentation "laboratory" ar
 
 ## Data Strategy
 - Primary dataset: NLVR2 (≈107k examples, ~6–7 GB of images).
-- Start with Hugging Face streaming (`datasets.load_dataset("nlvr", streaming=True)`) for iteration speed.
+- Start with Hugging Face streaming (`datasets.load_dataset("pingzhili/nlvr2", streaming=True)`) for iteration speed.
 - Cache full copies to Drive/Lambda storage only when stable throughput is required; keep a manifest documenting version, split sizes, and SHA checks.
 - Dataset preprocessing utilities live in `vlm_datasets/` and expose a toggle between streaming and cached modes.
 - Each example retains its NLVR2 `uid` plus metadata (image dimensions, URLs when available). Use `scripts/inspect_sample.py` to surface details and optionally export the paired images for manual review.

@@ -6,12 +6,16 @@ Qwen2-VL chat processor without committing to a specific training loop.
 """
 from __future__ import annotations
 
+import logging
 import random
 from dataclasses import dataclass
 from itertools import islice
 from typing import Any, Dict, List, Optional
 
 from datasets import Dataset, DatasetDict, IterableDataset, load_dataset
+from datasets.exceptions import DatasetNotFoundError
+
+logger = logging.getLogger(__name__)
 
 from utils.prompts import build_conversation, format_nlvr2_prompt
 
@@ -47,13 +51,16 @@ class NLVR2DataConfig:
     streaming_take: Optional[int] = None
 
 
-def _collect_image_info(image_dict: Dict[str, Any]) -> List[Dict[str, Any]]:
+def _collect_image_info(example: Dict[str, Any], images: List[Any]) -> List[Dict[str, Any]]:
     info: List[Dict[str, Any]] = []
 
-    for slot in ("left", "right"):
-        image = image_dict.get(slot)
-        if image is None:
-            continue
+    for idx, image in enumerate(images):
+        slot = None
+        if "image" in example and isinstance(example["image"], dict):
+            slot = "left" if idx == 0 else "right"
+        elif "image0" in example and "image1" in example:
+            slot = f"image{idx}"
+
         width = getattr(image, "width", None)
         height = getattr(image, "height", None)
         filename = getattr(image, "filename", None)
@@ -66,6 +73,44 @@ def _collect_image_info(image_dict: Dict[str, Any]) -> List[Dict[str, Any]]:
             }
         )
     return info
+
+DATASET_SOURCES = [
+    ("pingzhili/nlvr2", None),
+    ("lmms-lab/NLVR2", None),
+    ("HuggingFaceM4/NLVR2", None),
+    ("allenai/nlvr2", None),
+    ("nlvr", "nlvr2"),
+]
+
+
+def _load_raw_dataset(config: NLVR2DataConfig) -> Dataset | IterableDataset:
+    last_error: Exception | None = None
+    for path, name in DATASET_SOURCES:
+        try:
+            kwargs = dict(
+                split=config.split,
+                streaming=config.streaming,
+                data_dir=config.data_dir,
+                cache_dir=config.cache_dir,
+            )
+            if name is not None:
+                logger.info("Loading NLVR2 from %s/%s", path, name)
+                return load_dataset(path, name, **kwargs)
+            logger.info("Loading NLVR2 from %s", path)
+            return load_dataset(path, **kwargs)
+        except (FileNotFoundError, DatasetNotFoundError, ValueError) as err:
+            logger.warning("Failed to load %s (%s): %s", path, name, err)
+            last_error = err
+            continue
+        except Exception as err:  # pragma: no cover - defensive logging
+            logger.warning("Unexpected failure loading %s (%s): %s", path, name, err)
+            last_error = err
+            continue
+    if last_error is not None:
+        raise last_error
+    raise DatasetNotFoundError(
+        "Unable to load NLVR2 dataset from the configured sources."
+    )
 
 
 def load_nlvr2(config: NLVR2DataConfig) -> Dataset | IterableDataset:
@@ -81,14 +126,7 @@ def load_nlvr2(config: NLVR2DataConfig) -> Dataset | IterableDataset:
     The dataset retains streaming semantics when ``config.streaming`` is True.
     """
 
-    ds = load_dataset(
-        "nlvr",
-        "nlvr2",
-        split=config.split,
-        streaming=config.streaming,
-        data_dir=config.data_dir,
-        cache_dir=config.cache_dir,
-    )
+    ds = _load_raw_dataset(config)
 
     if config.streaming and config.shuffle:
         ds = ds.shuffle(buffer_size=config.shuffle_buffer_size, seed=config.seed)
@@ -98,35 +136,49 @@ def load_nlvr2(config: NLVR2DataConfig) -> Dataset | IterableDataset:
         ds = ds.shuffle(seed=config.seed)
 
     def _format(example: Dict[str, Any]) -> Dict[str, Any]:
-        images: List[Any] = [example["image"]["left"], example["image"]["right"]]
-        if config.randomize_image_order:
-            rng = random.Random(config.seed + hash(example["uid"]))
-            rng.shuffle(images)
+        if "image" in example and isinstance(example["image"], dict):
+            images: List[Any] = [example["image"]["left"], example["image"]["right"]]
+        else:
+            images = [example.get("image0"), example.get("image1")]
 
-        label = example["label"].strip()
-        if label.lower() not in {"true", "false"}:
-            raise ValueError(f"Unexpected NLVR2 label: {label}")
+        if any(image is None for image in images):
+            raise ValueError("Example is missing image data")
+
+        uid = example.get("uid") or example.get("identifier") or example.get("id")
+        if uid is None:
+            uid = f"{config.split}-{hash(example['sentence']) & 0xFFFFFFFF:x}"
+
+        label = example.get("label")
+        if isinstance(label, str):
+            label_clean = label.strip().lower()
+            if label_clean not in {"true", "false"}:
+                raise ValueError(f"Unexpected NLVR2 label: {label}")
+            label_text = "True" if label_clean == "true" else "False"
+        elif isinstance(label, bool):
+            label_text = "True" if label else "False"
+        else:
+            raise ValueError(f"Unsupported label type: {type(label)}")
 
         prompt = format_nlvr2_prompt(example["sentence"])
 
+        if config.randomize_image_order:
+            rng = random.Random(config.seed + hash(uid))
+            rng.shuffle(images)
+
         metadata = {
-            "uid": example.get("uid"),
+            "uid": uid,
             "identifier": example.get("identifier"),
-            "pair_id": example.get("pair_id"),
             "split": config.split,
-            "left_url": example.get("left_url"),
-            "right_url": example.get("right_url"),
-            "directory": example.get("directory"),
-            "filenames": example.get("filenames"),
             "sentence": example.get("sentence"),
+            "label_raw": example.get("label"),
         }
 
-        metadata["images"] = _collect_image_info(example["image"])
+        metadata["images"] = _collect_image_info(example, images)
 
         return {
-            "uid": example["uid"],
+            "uid": uid,
             "sentence": example["sentence"].strip(),
-            "label": "True" if label.lower() == "true" else "False",
+            "label": label_text,
             "images": images,
             "prompt": prompt,
             "metadata": metadata,
