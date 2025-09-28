@@ -1,0 +1,17 @@
+# Environment
+.venv/
+.env
+
+# Agent coordination
+AGENTS.md
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Logs and checkpoints
+logs/
+checkpoints/
+
+# Dataset artifacts
+*.cache

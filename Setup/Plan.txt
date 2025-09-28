@@ -1,0 +1,153 @@
+NLVR2 + Qwen2-VL-2B: Starter Plan (txt)
+
+Objective & Scope
+
+Goal: Build a single-GPU visual-reasoning “laboratory” by fine-tuning Qwen2-VL-2B on NLVR2 (pairwise image reasoning; binary True/False outputs). Use LoRA for parameter-efficient updates; freeze vision tower initially. Evaluate on NLVR2 dev and stress-test on Winoground (optional). Qwen2-VL-2B model resources exist on Hugging Face; NLVR2 is a 2-image, sentence-grounded dataset (~107k examples). 
+Hugging Face
++2
+Hugging Face
++2
+
+Environment & Dependencies
+
+Hardware: 1×A100 or H100 (bf16/fp16). Target batch sizes that fit VRAM; rely on gradient accumulation.
+
+Python libs: transformers (Qwen2-VL support), datasets (for NLVR2), accelerate, trl (SFT trainer for VLMs), peft (LoRA), torchvision / pillow (image I/O).
+
+References: HF model card for Qwen2-VL-2B; Transformers docs for Qwen2-VL; TRL cookbook for VLM fine-tuning; PEFT/LoRA docs. 
+Hugging Face
++5
+Hugging Face
++5
+Hugging Face
++5
+
+Data Acquisition (NLVR2)
+
+Preferred: use an NLVR2 loader from HF Datasets (community mirrors exist). Verify splits, image paths, and license. Expect pairs of image URIs and a sentence, plus a boolean label. If your chosen loader requires local images, download and materialize a path map. 
+Hugging Face
++1
+
+Ground truth scale/context: NLVR2 official page: 107,292 examples; sentences paired with two real-world photos; task is to judge statement truth about the pair. Use this to sanity-check your sample counts. 
+LIL Lab
+
+Data Packing (Interleaved Two-Image Prompts)
+
+Preprocess each example into a single multimodal sequence: [IMG_A] <sep> [IMG_B] <sep> “Statement: {text}. Answer ‘True’ or ‘False’.”
+
+Ensure the VLM input API accepts multiple images per sample (Qwen2-VL supports interleaved image+text). Use a consistent separator token or template so later ablations (prompt framing) are comparable. 
+Hugging Face
+
+Optional robustness: randomize left/right image order during training; record the permutation to evaluate order sensitivity.
+
+Vision Preprocessing
+
+Use the canonical preprocess for the Qwen2-VL vision tower (transform/normalization defined by the model card or processor). Do not mix CLIP/ViT normalizations across models; stick to the processor shipped with Qwen2-VL-2B. 
+Hugging Face
+
+Model Setup (Qwen2-VL-2B + LoRA)
+
+Load Qwen2-VL-2B (pretrained) and its processor/tokenizer. Freeze all base weights initially (vision encoder + most LM blocks).
+
+Enable parameter-efficient fine-tuning:
+• Attach LoRA adapters to cross-attention (if using HF cross-attn path) and the vision-→-LLM projection, plus optionally a few top MLPs.
+• Configure rank (e.g., r∈{8,16,32}), α, dropout; trainable parameter count should remain <<1% of full model. 
+Hugging Face
++1
+
+Training Objective & Template
+
+Treat NLVR2 as generative classification: causal LM loss to generate either “True” or “False” from the prompt+images. Keep prompts stable across runs.
+
+Use TRL’s SFT pipeline for VLMs to minimize boilerplate: it handles packing, mixed precision, gradient accumulation, and logging. Start with short max sequence lengths; increase once the loop is stable. 
+Hugging Face
++1
+
+Hyperparameters (Single-GPU Starting Point)
+
+Precision: bf16 (or fp16 if required).
+
+Batch: start small (e.g., per-GPU batch 1–2 with accumulation 16–64 steps).
+
+LR: 1–3e-4 for LoRA layers; cosine decay; warmup 3–5%.
+
+Epochs: 1–2 passes over training; early stop via dev accuracy.
+
+Vision tokens: begin with the model’s default resampling; later ablate the number of visual tokens exposed to the LM (see §11).
+
+Logging: track train loss, dev accuracy, and answer token probabilities.
+
+Evaluation Protocol
+
+Primary: NLVR2 dev accuracy (exact match on “True/False”). Keep a fixed evaluation prompt (no chain-of-thought) for comparability. 
+LIL Lab
+
+Secondary (optional): Winoground for anti-shortcut stress-testing (report group accuracies). This is diagnostic; absolute numbers are typically low. 
+Hugging Face
+
+Sanity checks: left/right swap tests; prompt variants (Q/A vs. declarative) to measure instruction sensitivity.
+
+Baselines to Establish Before Ablations
+
+Zero-shot Qwen2-VL-2B on NLVR2 dev (no training).
+
+SFT with LoRA (default settings).
+
+If convenient, compare to a public NLVR2-fine-tuned open baseline (e.g., PaliGemma-3B-ft-NLVR2) to ensure your evaluation matches community practice. 
+Hugging Face
+
+Initial Scientific Ablations (“Laboratory Dials”)
+
+Visual token budget: downsample/upsample the number of image tokens the LLM attends to (e.g., 16/32/64 vs. default), plot accuracy vs. latency. This probes the Flamingo/Resampler economy trade-off seen broadly in VLMs. 
+Hugging Face
+
+Conditioning depth: prefix-only image tokens vs. per-block cross-attention (HF add_cross_attention=True path). Quantify the gain on pairwise reasoning. 
+Hugging Face
+
+Prompt framing: declarative (“Answer ‘True’ or ‘False’.”) vs. short Q/A; measure both accuracy and confidence calibration (ECE).
+
+Practical Tips (Stability & Reproducibility)
+
+Determinism: fix seeds; log exact processor versions and prompt templates.
+
+Overfitting watch: NLVR2 is moderate in size; monitor train–dev gaps.
+
+Mixed precision gotchas: keep layernorms in fp32 if instabilities appear; clip gradients on LoRA adapters.
+
+Save only LoRA adapters to keep checkpoints small; PEFT supports merge/unmerge for export. 
+Hugging Face
+
+Extensions (Once the Core Loop is Solid)
+
+Small OCR slice (e.g., TextCaps mini-subset) to see whether pairwise-reasoning SFT helps/hurts reading-heavy tasks.
+
+Science/Chart slices (ScienceQA/ChartQA) for transfer checks. (HF Cookbook has related VLM fine-tuning recipes you can adapt.) 
+Hugging Face
+
+Compare Qwen2-VL-2B vs. an 8B-class open VLM (e.g., IDEFICS2) in pure inference mode to contextualize absolute performance before scaling up. (Model docs available on HF.)
+
+References (for setup and later deep dives)
+
+NLVR2 official page (task definition, scale, examples). 
+LIL Lab
+
+Qwen2-VL-2B model card; Qwen2-VL docs in Transformers. 
+Hugging Face
++1
+
+TRL cookbook notebook for VLM fine-tuning (Qwen2-VL example). 
+Hugging Face
++1
+
+PEFT / LoRA conceptual and API docs. 
+Hugging Face
++2
+Hugging Face
++2
+
+Example NLVR2-tuned open model for comparison (PaliGemma). 
+Hugging Face
+
+—
+Deliverables you should produce in week 1:
+(1) A baseline inference/eval script (zero-shot Qwen2-VL-2B on NLVR2 dev). (2) A single-GPU LoRA SFT training run with logged prompts and metrics. (3) A short ablation report varying visual token budget and conditioning depth.

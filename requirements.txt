@@ -1,0 +1,19 @@
+# Core deep learning stack
+torch>=2.3
+torchvision>=0.18
+transformers>=4.44.0
+accelerate>=0.33.0
+trl>=0.11.4
+peft>=0.12.0
+
+# Data loading & preprocessing
+datasets>=2.20.0
+evaluate>=0.4.2
+numpy>=1.24
+pillow>=10.3.0
+scipy>=1.11
+
+# Logging & utilities
+tensorboard>=2.17.0
+tqdm>=4.66
+python-dotenv>=1.0.1
