@@ -27,3 +27,7 @@ Today I read about two relevant things for this project
 So it seems worthwhile to get a sense of the excess information (as in the amount of information to be gained by the to-be-finetuned model) contained in the image datasets I'll be using (as measured by the surprisal). I'd want to choose LoRA $k$ such that the number of lora parameters is well above this.
 
 It would also be interesting to explore what factors affect how much information is to be gained from images (plenty to do here I think)
+## Dataset Notes
+- See `docs/datasets/aguvis.md` for stage-1/stage-2 schema and config summary.
+- See `docs/datasets/screenspot_v2.md` for the ScreenSpot benchmark structure.
+
