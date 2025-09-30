@@ -154,12 +154,16 @@ def compute_token_stats(
     tokenizer,
     image_token_ids: Sequence[int],
     include_token_details: bool,
+    response_start: int,
 ) -> Dict:
     labels = inputs["input_ids"].clone()
     pad_id = tokenizer.pad_token_id
     if pad_id is not None:
         labels[labels == pad_id] = -100
     labels[:, 0] = -100
+    if response_start > 0:
+        # Ignore prompt tokens (system/user/image prefix) so only assistant response contributes.
+        labels[:, :response_start] = -100
     batch = {key: value for key, value in inputs.items()}
     batch["labels"] = labels
     with torch.no_grad():
@@ -294,6 +298,19 @@ def main() -> None:
         sample_id = make_sample_id(args.dataset, args.config, args.split, global_index)
         messages = build_messages(args.dataset, sample)
 
+        if len(messages) > 1:
+            prefix_messages = messages[:-1]
+            prefix_inputs = processor.apply_chat_template(
+                prefix_messages,
+                add_generation_prompt=True,
+                tokenize=True,
+                return_dict=True,
+                return_tensors="pt",
+            )
+            response_start = prefix_inputs["input_ids"].shape[-1]
+        else:
+            response_start = 0
+
         inputs = processor.apply_chat_template(
             messages,
             add_generation_prompt=False,
@@ -301,11 +318,14 @@ def main() -> None:
             return_dict=True,
             return_tensors="pt",
         )
+        response_start = min(response_start, inputs["input_ids"].shape[-1])
         inputs = inputs.to(device)
         if "pixel_values" in inputs:
             inputs["pixel_values"] = inputs["pixel_values"].to(device=device, dtype=dtype)
 
-        stats = compute_token_stats(model, inputs, tokenizer, image_token_ids, args.log_token_details)
+        stats = compute_token_stats(
+            model, inputs, tokenizer, image_token_ids, args.log_token_details, response_start
+        )
 
         record = {
             "sample_id": sample_id,
@@ -314,6 +334,8 @@ def main() -> None:
             "split": args.split,
             "index": global_index,
             "source": sample.get("source"),
+            "prompt_tokens": int(response_start),
+            "response_tokens": stats["num_tokens"],
             "total_surprisal_bits": stats["total_surprisal_bits"],
             "total_surprisal_nats": stats["total_surprisal_nats"],
             "avg_surprisal_bits": stats["avg_surprisal_bits"],
