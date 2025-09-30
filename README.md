@@ -16,3 +16,14 @@ For a "thing to do" - What sort of things could we do to improve the model's cap
 
 Of course there are a lot of questions that this brings up. Some that stood out to me more are along the lines of "Do different ways of presenting the visual information have an effect on the model's ability to understand the image in a fine-grained way (e.g. to be able to correctly count and describe several similar objects)? How does the way the model pre-processes images (for Qwen2-VL, the ViT does patching and then we do resampling) affect its performance in these sorts of tasks? As a basic question that I'm sure has been studied to death already, is performance on tasks like this sensitive to the details of the patching and re-sampling? Does reorienting the image make a difference (perhaps how many patches an object is in initially makes a difference?)? Does this motivate changes to my bounding box tool approach (Should the bounding box tool create a cropped version of the image in addition to one marked up with a bounding box?) 
 
+Update -
+
+Today I read about two relevant things for this project
+
+- Huggingface recently released their "Smol2Operator" https://huggingface.co/blog/smol2operator, a 2b model trained to navigate computer interfaces. Their success with a small model like this is encouraging, and their datasets are probably going to be very useful.
+
+- John Schulman at Thinking Machines wrote this blog https://thinkingmachines.ai/blog/lora/ about the efficacy of LoRA. One of the many takeaways I had was about estimating the information to be gained from a dataset vs the capacity of the model. Previously I had just blindly chosen LoRA parameters. However I'd like to be able to do better in this project to be extra efficient. Apparently we should roughly think of each trainable paramter as having the capacity to learn 2 bits of information (My impression from briefly skimming the paper he cited on this is that this is basically just an emperical observation, not clear why this value and even why there is a sort of universal capacity). If we are interested in fine tuning on some dataset, it's a good idea then to measure the information to be gained from the dataset. Apparently for typical LLM datasets, it's typically about one bit per token. This can be measured by computing the mean surprisal per token of the to-be-finetuned model on the fine-tuning dataset. 
+
+So it seems worthwhile to get a sense of the excess information (as in the amount of information to be gained by the to-be-finetuned model) contained in the image datasets I'll be using (as measured by the surprisal). I'd want to choose LoRA $k$ such that the number of lora parameters is well above this.
+
+It would also be interesting to explore what factors affect how much information is to be gained from images (plenty to do here I think)
